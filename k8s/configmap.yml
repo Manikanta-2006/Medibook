@@ -1,0 +1,18 @@
+# ============================================
+# MediBook - Application ConfigMap
+# ============================================
+# Non-secret configuration values
+# ============================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: medibook-config
+  namespace: medibook
+  labels:
+    app: medibook
+data:
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  MYSQL_HOST: "medibook-mysql-service"
+  MYSQL_DATABASE: "hospital_db"
+  MYSQL_PORT: "3306"

@@ -1,0 +1,23 @@
+# ============================================
+# MediBook - MySQL Service
+# ============================================
+# ClusterIP: Internal access only within cluster
+# ============================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: medibook-mysql-service
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+      name: mysql
+  selector:
+    app: medibook
+    tier: database

@@ -1,0 +1,35 @@
+# Environment variables (contains secrets)
+.env
+
+# Docker MySQL data volume
+docker/mysql/data/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+
+# Local Database backups
+backups/
+
+# Kubernetes & EKS local configs
+.kube/
+kubeconfig
+*kubeconfig*
+.eksctl/
+aws/*credentials*
+*.pem
+*.key

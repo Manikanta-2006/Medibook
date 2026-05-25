@@ -1,0 +1,95 @@
+# ============================================
+# MediBook - Docker Compose (Development)
+# ============================================
+# Usage: docker-compose up -d
+# Access: http://localhost:8080 (App)
+#         http://localhost:8081 (phpMyAdmin)
+# ============================================
+
+
+services:
+  # -----------------------------------------
+  # PHP + Apache Application Server
+  # -----------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: medibook-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8082}:80"
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST:-db}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-hospital_db}
+      - MYSQL_USER=${MYSQL_USER:-medibook_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-medibook_pass_2025}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - APP_ENV=${APP_ENV:-development}
+      - APP_DEBUG=${APP_DEBUG:-true}
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - medibook-network
+
+  # -----------------------------------------
+  # MySQL Database Server
+  # -----------------------------------------
+  db:
+    image: mysql:8.0
+    container_name: medibook-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-medibook_root_2025}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hospital_db}
+      MYSQL_USER: ${MYSQL_USER:-medibook_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-medibook_pass_2025}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-medibook_root_2025}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - medibook-network
+
+  # -----------------------------------------
+  # phpMyAdmin - Database Management UI
+  # -----------------------------------------
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: medibook-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8081}:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-medibook_root_2025}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - medibook-network
+
+# -----------------------------------------
+# Persistent Volumes
+# -----------------------------------------
+volumes:
+  mysql_data:
+    driver: local
+
+# -----------------------------------------
+# Network Configuration
+# -----------------------------------------
+networks:
+  medibook-network:
+    driver: bridge

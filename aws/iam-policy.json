@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSClusterPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "eks:*",
+        "ec2:Describe*",
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:DeleteSecurityGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EBSVolumePolicy",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVolume",
+        "ec2:AttachVolume",
+        "ec2:DetachVolume",
+        "ec2:DeleteVolume",
+        "ec2:DescribeVolumes",
+        "ec2:DescribeVolumeStatus",
+        "ec2:CreateSnapshot",
+        "ec2:DeleteSnapshot",
+        "ec2:DescribeSnapshots"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ELBPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole",
+        "iam:PassRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "eks.amazonaws.com"
+        }
+      }
+    }
+  ]
+}

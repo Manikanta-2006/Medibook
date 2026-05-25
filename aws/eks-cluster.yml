@@ -1,0 +1,58 @@
+# ============================================
+# MediBook - AWS EKS Cluster Configuration
+# ============================================
+# Create cluster: eksctl create cluster -f aws/eks-cluster.yml
+# Delete cluster: eksctl delete cluster -f aws/eks-cluster.yml
+# ============================================
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: medibook-cluster
+  region: ap-south-1
+  version: "1.28"
+  tags:
+    Project: MediBook
+    Environment: Production
+
+# IAM configuration
+iam:
+  withOIDC: true
+
+# Managed Node Groups
+managedNodeGroups:
+  - name: medibook-workers
+    instanceType: t3.medium
+    minSize: 2
+    maxSize: 4
+    desiredCapacity: 2
+    volumeSize: 20
+    volumeType: gp3
+    labels:
+      role: worker
+      project: medibook
+    tags:
+      Project: MediBook
+      NodeGroup: workers
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        ebs: true
+        efs: false
+        albIngress: true
+        cloudWatch: true
+
+# Availability Zones
+availabilityZones:
+  - ap-south-1a
+  - ap-south-1b
+
+# CloudWatch logging
+cloudWatch:
+  clusterLogging:
+    enableTypes:
+      - api
+      - audit
+      - authenticator
+      - controllerManager
+      - scheduler

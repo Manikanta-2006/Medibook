@@ -1,0 +1,101 @@
+# ============================================
+# MediBook - Jenkins on Kubernetes (Optional)
+# ============================================
+# Deploy Jenkins controller on K8s cluster
+# Access via LoadBalancer on port 8080
+# ============================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+  namespace: jenkins
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp2
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: jenkins
+          image: jenkins/jenkins:lts
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 50000
+              name: jnlp
+          env:
+            - name: JAVA_OPTS
+              value: "-Xmx512m -Xms256m"
+          volumeMounts:
+            - name: jenkins-data
+              mountPath: /var/jenkins_home
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 15
+      volumes:
+        - name: jenkins-data
+          persistentVolumeClaim:
+            claimName: jenkins-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-service
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+    - port: 50000
+      targetPort: 50000
+      protocol: TCP
+      name: jnlp
+  selector:
+    app: jenkins

@@ -1,0 +1,23 @@
+# ============================================
+# MediBook - PHP Application Service
+# ============================================
+# ClusterIP: Routes internal traffic to app pods
+# ============================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: medibook-app-service
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: medibook
+    tier: frontend

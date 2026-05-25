@@ -1,0 +1,27 @@
+# ============================================
+# MediBook - Nginx LoadBalancer Service
+# ============================================
+# Public entry point — gets AWS ELB on EKS
+# ============================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: medibook-nginx-service
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: proxy
+  annotations:
+    # AWS ELB annotations (applied when running on EKS)
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: medibook
+    tier: proxy

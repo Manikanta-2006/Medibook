@@ -1,0 +1,91 @@
+# ============================================
+# MediBook - MySQL Deployment
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medibook-mysql
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medibook
+      tier: database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: medibook
+        tier: database
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+              name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: medibook-config
+                  key: MYSQL_DATABASE
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secrets
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secrets
+                  key: MYSQL_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+            - name: mysql-init-script
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: medibook-mysql-pvc
+        - name: mysql-init-script
+          configMap:
+            name: medibook-mysql-init

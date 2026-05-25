@@ -1,0 +1,21 @@
+# Git
+.git
+.github
+
+# Environment (injected at runtime)
+.env
+
+# Documentation
+*.md
+LICENSE
+
+# Docker data
+docker/mysql/data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

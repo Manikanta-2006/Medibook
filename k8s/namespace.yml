@@ -1,0 +1,10 @@
+# ============================================
+# MediBook - Kubernetes Namespace
+# ============================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medibook
+  labels:
+    app: medibook
+    environment: production

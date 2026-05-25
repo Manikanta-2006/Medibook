@@ -1,0 +1,224 @@
+// ============================================
+// MediBook - Jenkins CI/CD Pipeline
+// ============================================
+// Declarative pipeline: Build → Test → Push → Deploy to K8s → Verify
+// ============================================
+
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = 'manikanta2006/medibook-app'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+        KUBE_NAMESPACE = 'medibook'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+        // =========================================
+        // Stage 1: Checkout Source Code
+        // =========================================
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out source code...'
+                checkout scm
+                echo "✅ Code checked out. Build #${BUILD_NUMBER}"
+            }
+        }
+
+        // =========================================
+        // Stage 2: Build Docker Image
+        // =========================================
+        stage('Build Docker Image') {
+            steps {
+                echo '🐳 Building Docker image...'
+                script {
+                    dockerImage = docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}", "-f docker/php/Dockerfile .")
+                }
+                echo "✅ Docker image built: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            }
+        }
+
+        // =========================================
+        // Stage 3: Test Application
+        // =========================================
+        stage('Test') {
+            steps {
+                echo '🧪 Running tests...'
+
+                // PHP Syntax Check (Lint)
+                echo '🔍 PHP Lint Check...'
+                sh 'find src/ -name "*.php" -exec php -l {} \\;'
+
+                // Start containers for integration testing
+                echo '🏥 Starting test containers...'
+                sh '''
+                    cp .env.example .env
+                    docker compose up -d --build
+                    echo "⏳ Waiting for MySQL to be ready..."
+                    sleep 30
+                '''
+
+                // Verify MySQL
+                echo '✅ Verifying MySQL...'
+                sh 'docker compose exec -T db mysqladmin ping -h localhost -u root -pmedibook_root_2025'
+
+                // Verify database tables
+                echo '✅ Verifying database tables...'
+                sh 'docker compose exec -T db mysql -u root -pmedibook_root_2025 hospital_db -e "SHOW TABLES;"'
+
+                // HTTP Health Check
+                echo '✅ HTTP Health Check...'
+                sh '''
+                    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/login.php)
+                    if [ "$HTTP_STATUS" -eq 200 ]; then
+                        echo "✅ Application responding (HTTP $HTTP_STATUS)"
+                    else
+                        echo "❌ Health check failed (HTTP $HTTP_STATUS)"
+                        docker compose logs app
+                        exit 1
+                    fi
+                '''
+            }
+            post {
+                always {
+                    echo '🧹 Cleaning up test containers...'
+                    sh 'docker compose down -v || true'
+                }
+            }
+        }
+
+        // =========================================
+        // Stage 4: Push to Docker Hub
+        // =========================================
+        stage('Push to Docker Hub') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo '📤 Pushing image to Docker Hub...'
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        dockerImage.push("${DOCKER_TAG}")
+                        dockerImage.push('latest')
+                    }
+                }
+                echo "✅ Image pushed: ${DOCKER_IMAGE}:${DOCKER_TAG} and :latest"
+            }
+        }
+
+        // =========================================
+        // Stage 5: Deploy to Kubernetes
+        // =========================================
+        stage('Deploy to Kubernetes') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo '🚀 Deploying to Kubernetes...'
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    // Apply all Kubernetes manifests
+                    sh '''
+                        echo "📦 Applying Kubernetes manifests..."
+
+                        # Apply namespace first
+                        kubectl apply -f k8s/namespace.yml
+
+                        # Apply configs and secrets
+                        kubectl apply -f k8s/configmap.yml
+                        kubectl apply -f k8s/secrets.yml
+
+                        # Apply MySQL resources
+                        kubectl apply -f k8s/mysql/init-configmap.yml
+                        kubectl apply -f k8s/mysql/pvc.yml
+                        kubectl apply -f k8s/mysql/deployment.yml
+                        kubectl apply -f k8s/mysql/service.yml
+
+                        # Wait for MySQL to be ready
+                        echo "⏳ Waiting for MySQL pod to be ready..."
+                        kubectl wait --for=condition=ready pod -l tier=database -n ${KUBE_NAMESPACE} --timeout=120s
+
+                        # Apply App resources with new image tag
+                        kubectl set image deployment/medibook-app \
+                            medibook-app=${DOCKER_IMAGE}:${DOCKER_TAG} \
+                            -n ${KUBE_NAMESPACE} || kubectl apply -f k8s/app/deployment.yml
+                        kubectl apply -f k8s/app/service.yml
+                        kubectl apply -f k8s/app/hpa.yml
+
+                        # Apply Nginx resources
+                        kubectl apply -f k8s/nginx/configmap.yml
+                        kubectl apply -f k8s/nginx/deployment.yml
+                        kubectl apply -f k8s/nginx/service.yml
+
+                        # Apply phpMyAdmin resources
+                        kubectl apply -f k8s/phpmyadmin/deployment.yml
+                        kubectl apply -f k8s/phpmyadmin/service.yml
+
+                        echo "✅ All manifests applied"
+                    '''
+                }
+            }
+        }
+
+        // =========================================
+        // Stage 6: Verify Deployment
+        // =========================================
+        stage('Verify Deployment') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo '🔍 Verifying deployment...'
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        # Wait for app rollout
+                        echo "⏳ Waiting for app deployment rollout..."
+                        kubectl rollout status deployment/medibook-app -n ${KUBE_NAMESPACE} --timeout=120s
+
+                        # Wait for nginx rollout
+                        echo "⏳ Waiting for nginx deployment rollout..."
+                        kubectl rollout status deployment/medibook-nginx -n ${KUBE_NAMESPACE} --timeout=60s
+
+                        # Show pod status
+                        echo ""
+                        echo "📊 Pod Status:"
+                        kubectl get pods -n ${KUBE_NAMESPACE} -o wide
+
+                        # Show services
+                        echo ""
+                        echo "🌐 Services:"
+                        kubectl get svc -n ${KUBE_NAMESPACE}
+
+                        # Get LoadBalancer URL
+                        echo ""
+                        echo "🔗 Application URL:"
+                        kubectl get svc medibook-nginx-service -n ${KUBE_NAMESPACE} \
+                            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || \
+                            echo "LoadBalancer URL pending..."
+
+                        echo ""
+                        echo "🎉 Deployment verified successfully!"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check the logs above for details.'
+        }
+        always {
+            echo "📋 Build #${BUILD_NUMBER} finished at ${new Date()}"
+            cleanWs()
+        }
+    }
+}

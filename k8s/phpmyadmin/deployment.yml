@@ -1,0 +1,46 @@
+# ============================================
+# MediBook - phpMyAdmin Deployment
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medibook-phpmyadmin
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medibook
+      tier: admin
+  template:
+    metadata:
+      labels:
+        app: medibook
+        tier: admin
+    spec:
+      containers:
+        - name: phpmyadmin
+          image: phpmyadmin:latest
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: PMA_HOST
+              value: "medibook-mysql-service"
+            - name: PMA_PORT
+              value: "3306"
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medibook-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"

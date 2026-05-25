@@ -1,0 +1,62 @@
+# ============================================
+# MediBook - Nginx ConfigMap for Kubernetes
+# ============================================
+# Reverse proxy config adapted for K8s service names
+# ============================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: medibook-nginx-config
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: proxy
+data:
+  default.conf: |
+    upstream medibook_app {
+        server medibook-app-service:80;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # Reverse proxy to PHP app
+        location / {
+            proxy_pass http://medibook_app;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Rate limit login/signup
+        location ~ ^/(login|signup)\.php$ {
+            proxy_pass http://medibook_app;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Cache static assets
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js|webp|avif|svg|woff2?)$ {
+            proxy_pass http://medibook_app;
+            proxy_set_header Host $host;
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "OK";
+            add_header Content-Type text/plain;
+        }
+    }

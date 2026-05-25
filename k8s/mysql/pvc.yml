@@ -1,0 +1,21 @@
+# ============================================
+# MediBook - MySQL Persistent Volume Claim
+# ============================================
+# Requests 5Gi storage for MySQL data
+# Uses gp2 StorageClass on AWS EKS (EBS volumes)
+# ============================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: medibook-mysql-pvc
+  namespace: medibook
+  labels:
+    app: medibook
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+
+  resources:
+    requests:
+      storage: 5Gi
