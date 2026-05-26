@@ -30,8 +30,8 @@ spec:
     spec:
       containers:
         - name: medibook-app
-          image: manikanta2006/medibook-app:latest
-          imagePullPolicy: IfNotPresent
+          image: 886031931326.dkr.ecr.ap-south-1.amazonaws.com/medibook-app:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
               name: http

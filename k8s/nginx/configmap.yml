@@ -17,6 +17,10 @@ data:
         server medibook-app-service:80;
     }
 
+    upstream medibook_phpmyadmin {
+        server medibook-phpmyadmin-service:80;
+    }
+
     server {
         listen 80;
         server_name _;
@@ -26,6 +30,19 @@ data:
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-XSS-Protection "1; mode=block" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # Reverse proxy to phpMyAdmin
+        location ^~ /phpmyadmin/ {
+            proxy_pass http://medibook_phpmyadmin/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Prefix /phpmyadmin;
+            
+            # Absolute redirect rewrites
+            proxy_redirect / /phpmyadmin/;
+        }
 
         # Reverse proxy to PHP app
         location / {

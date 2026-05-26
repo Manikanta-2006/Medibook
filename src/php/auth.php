@@ -33,9 +33,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Dynamically generate a clean, unique username from email prefix
+        $base_username = explode('@', $email)[0];
+        $base_username = preg_replace('/[^a-zA-Z0-9_\.]/', '', $base_username);
+        $username = $base_username;
+        $counter = 1;
+        while (true) {
+            $stmt_u = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+            $stmt_u->execute([$username]);
+            if (!$stmt_u->fetch()) {
+                break;
+            }
+            $username = $base_username . $counter;
+            $counter++;
+        }
+
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO users (full_name, email, password, phone) VALUES (?, ?, ?, ?)");
-        if ($stmt->execute([$full_name, $email, $hashed_password, $phone])) {
+        $stmt = $pdo->prepare("INSERT INTO users (username, full_name, email, password, phone) VALUES (?, ?, ?, ?, ?)");
+        if ($stmt->execute([$username, $full_name, $email, $hashed_password, $phone])) {
             $user_id = $pdo->lastInsertId();
             $_SESSION['user_id'] = $user_id;
             $_SESSION['username'] = $full_name;

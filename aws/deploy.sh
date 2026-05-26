@@ -25,12 +25,12 @@ echo ""
 echo "📋 Step 1: Checking prerequisites..."
 
 command -v aws >/dev/null 2>&1 || { echo "❌ AWS CLI not installed. Install: https://aws.amazon.com/cli/"; exit 1; }
-command -v eksctl >/dev/null 2>&1 || { echo "❌ eksctl not installed. Install: https://eksctl.io/"; exit 1; }
+command -v terraform >/dev/null 2>&1 || { echo "❌ Terraform not installed. Install: https://terraform.io/"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "❌ kubectl not installed. Install: https://kubernetes.io/docs/tasks/tools/"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "❌ Docker not installed."; exit 1; }
 
 echo "  ✅ AWS CLI: $(aws --version 2>&1 | cut -d' ' -f1)"
-echo "  ✅ eksctl: $(eksctl version)"
+echo "  ✅ Terraform: $(terraform -version | head -n1)"
 echo "  ✅ kubectl: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
 echo "  ✅ Docker: $(docker --version)"
 echo ""
@@ -48,18 +48,16 @@ echo "  ✅ AWS Account: $AWS_ACCOUNT"
 echo ""
 
 # -----------------------------------------------
-# Step 3: Create EKS Cluster
+# Step 3: Create EKS Cluster via Terraform
 # -----------------------------------------------
-echo "📋 Step 3: Creating EKS cluster..."
+echo "📋 Step 3: Creating EKS cluster via Terraform..."
 echo "  ⏳ This takes 15-20 minutes..."
 
-# Check if cluster already exists
-if eksctl get cluster --name $CLUSTER_NAME --region $REGION 2>/dev/null; then
-    echo "  ℹ️  Cluster '$CLUSTER_NAME' already exists. Skipping creation."
-else
-    eksctl create cluster -f aws/eks-cluster.yml
-    echo "  ✅ EKS cluster created!"
-fi
+cd terraform
+terraform init
+terraform apply -auto-approve
+cd ..
+echo "  ✅ EKS cluster created!"
 echo ""
 
 # -----------------------------------------------
@@ -75,12 +73,26 @@ kubectl get nodes
 echo ""
 
 # -----------------------------------------------
-# Step 5: Build and Push Docker Image
+# Step 5: Build and Push Docker Image to AWS ECR
 # -----------------------------------------------
-echo "📋 Step 5: Building and pushing Docker image..."
-docker build -t $DOCKER_IMAGE:latest -f docker/php/Dockerfile .
-docker push $DOCKER_IMAGE:latest
-echo "  ✅ Image pushed: $DOCKER_IMAGE:latest"
+echo "📋 Step 5: Building and pushing Docker image to AWS ECR..."
+
+# Fetch ECR Registry URL from Terraform Output
+ECR_URL=$(cd terraform && terraform output -raw ecr_repository_url)
+echo "  ℹ️  ECR Repository: $ECR_URL"
+
+echo "  🔑 Logging in to AWS ECR..."
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
+
+echo "  🐳 Building Docker image..."
+docker build --platform linux/amd64 -t medibook-app:latest -f docker/php/Dockerfile .
+
+echo "  🏷️  Tagging Docker image for ECR..."
+docker tag medibook-app:latest $ECR_URL:latest
+
+echo "  📤 Pushing image to ECR..."
+docker push $ECR_URL:latest
+echo "  ✅ Image pushed successfully to ECR: $ECR_URL:latest"
 echo ""
 
 # -----------------------------------------------
@@ -107,6 +119,7 @@ echo "  ✅ MySQL is ready!"
 
 echo "  📦 Deploying PHP Application..."
 kubectl apply -f k8s/app/deployment.yml
+kubectl set image deployment/medibook-app medibook-app=$ECR_URL:latest -n $NAMESPACE
 kubectl apply -f k8s/app/service.yml
 kubectl apply -f k8s/app/hpa.yml
 
@@ -172,5 +185,5 @@ echo "  Useful Commands:"
 echo "  kubectl get pods -n $NAMESPACE"
 echo "  kubectl logs -f deployment/medibook-app -n $NAMESPACE"
 echo "  kubectl get hpa -n $NAMESPACE"
-echo "  eksctl delete cluster -f aws/eks-cluster.yml"
-echo "============================================"
+echo "  cd terraform && terraform destroy -auto-approve"
+echo "=================================================="

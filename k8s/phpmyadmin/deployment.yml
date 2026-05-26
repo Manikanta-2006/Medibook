@@ -28,6 +28,8 @@ spec:
             - containerPort: 80
               name: http
           env:
+            - name: PMA_ABSOLUTE_URI
+              value: "http://a28f47ab0e0a348d4b33a865954c3593-ffd78a0a666c5220.elb.ap-south-1.amazonaws.com/phpmyadmin/"
             - name: PMA_HOST
               value: "medibook-mysql-service"
             - name: PMA_PORT

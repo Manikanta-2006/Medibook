@@ -5,7 +5,7 @@ require 'php/config.php';
 
 
 $stmt = $pdo->query("
-    SELECT b.id, b.ward, b.status, h.name AS hospital_name
+    SELECT b.id, b.ward_type AS ward, CONCAT(b.available_beds, ' / ', b.total_beds, ' Available') AS status, h.name AS hospital_name
     FROM beds b
     JOIN hospitals h ON b.hospital_id = h.id
     ORDER BY b.id

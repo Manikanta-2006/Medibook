@@ -3,7 +3,7 @@ session_start();
 require 'php/config.php';
 
 $stmt = $pdo->query("
-    SELECT i.item_name, i.type, i.quantity, h.name AS hospital_name
+    SELECT i.item_name, i.category AS type, i.quantity, h.name AS hospital_name
     FROM inventory i
     JOIN hospitals h ON i.hospital_id = h.id
     ORDER BY i.item_name

@@ -13,6 +13,7 @@ metadata:
     tier: frontend
 spec:
   type: ClusterIP
+  sessionAffinity: ClientIP
   ports:
     - port: 80
       targetPort: 80

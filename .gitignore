@@ -33,3 +33,10 @@ kubeconfig
 aws/*credentials*
 *.pem
 *.key
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl

@@ -4,6 +4,16 @@ A full-stack **Hospital Appointment Booking System** built with **PHP + MySQL**,
 
 ---
 
+## 🔗 Live AWS EKS Deployment Details
+The application is fully live and running on a multi-replica **AWS EKS (Elastic Kubernetes Service)** cluster:
+
+* **🚀 Live Patient Booking Portal:** [http://a28f47ab0e0a348d4b33a865954c3593-ffd78a0a666c5220.elb.ap-south-1.amazonaws.com/login.php](http://a28f47ab0e0a348d4b33a865954c3593-ffd78a0a666c5220.elb.ap-south-1.amazonaws.com/login.php)
+* **🛠️ phpMyAdmin Database Console:** [http://a28f47ab0e0a348d4b33a865954c3593-ffd78a0a666c5220.elb.ap-south-1.amazonaws.com/phpmyadmin/](http://a28f47ab0e0a348d4b33a865954c3593-ffd78a0a666c5220.elb.ap-south-1.amazonaws.com/phpmyadmin/)
+  * **Database Username:** `medibook_user`
+  * **Database Password:** `medibook_secure_password`
+
+---
+
 ## 📚 Overview
 
 MediBook is a web-based healthcare management platform that enables patients to:
